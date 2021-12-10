@@ -1,11 +1,8 @@
-from turtledemo import forest
+import lightgbm
+import catboost
+from sklearn.ensemble import AdaBoostClassifier
 
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.tree import DecisionTreeClassifier
-from rotation_forest import RotationTreeClassifier
-
-
-class DTC:
+class AdaBoost:
 
     def __init__(self, max_depth=None, min_samples_split=2):
 
