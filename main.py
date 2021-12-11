@@ -1,11 +1,12 @@
+from sklearn.ensemble import AdaBoostClassifier
 from sklearn.model_selection import GridSearchCV
 from tqdm import tqdm
-from sklearn.utils.class_weight import compute_class_weight
 import numpy as np
 import read_csv as reader
 from data_preparation import DataPreparation
-from models import DTC, ourRandomForest, ourRotationForest
-from sklearn.metrics import f1_score, accuracy_score, roc_auc_score
+from sklearn.metrics import mean_squared_error
+from lightgbm import LGBMRegressor
+from catboost import CatBoostRegressor
 from matplotlib import pyplot as plt
 import seaborn as sns
 
@@ -36,9 +37,9 @@ def prepare_data(dp, file_name):
 
     dp.partition_data_sets()
     dp.fill_na()
-    correlation(dp, file_name)
-    for i in range(len(dp.all_data_frames)):
-        dp.discretization(dp.all_data_frames[i])
+    # correlation(dp, file_name)
+    dp.discretization(dp.x_train)
+    dp.discretization(dp.x_test)
 
 
 def correlation(dp, file_name):
@@ -66,39 +67,38 @@ def print_best_params(best_params, name):
         print(f'{key}: {val}')
 
 
-def run_decision_tree_model(grid_search=False):
+def run_adaboost(grid_search=False):
     """
-    run DecisionTreeClassifier model,
+    run AdaBoostClassifier model,
     consider whether to apply grid search with cross validation for hyper parameters tuning.
-    evaluate the model using F1 Score metric.
+    evaluate the model using MSE Score metric.
     :return:
     """
 
     total_data = iterate_files()
-    class_model = DTC()
+    model = AdaBoostClassifier()
     scores = []
 
     for name, prepared_data in total_data.items():
         if grid_search:
             params = {'max_depth': [5, 10, 12, 15, 20, 30, 50], 'min_samples_split': [2, 3, 5, 7]}
-            dtc_gs = GridSearchCV(class_model.model, params, cv=5).fit(prepared_data.x_train, np.ravel(prepared_data.y_train))
+            dtc_gs = GridSearchCV(model, params, cv=5).fit(prepared_data.x_train, np.ravel(prepared_data.y_train))
 
             best_params = dtc_gs.best_params_
             print_best_params(best_params, name)
-            class_model = DTC(max_depth=best_params['max_depth'],
-                                    min_samples_split=best_params['min_samples_split'])
+            model = AdaBoostClassifier()
 
-        class_model.fit(prepared_data.x_train, np.ravel(prepared_data.y_train))
-        y_prediction = class_model.predict(prepared_data.x_test)
+        model.fit(prepared_data.x_train, np.ravel(prepared_data.y_train))
+        y_prediction = model.predict(prepared_data.x_test)
         scores.append([name.split('/')[1], evaluate(y_prediction, prepared_data.y_test)])
     return scores
 
 
-def run_random_forest(grid_search=False):
+def run_lightgbm(grid_search=False):
     """
-    run RandomForestClassifier model,
+    run LGBMRegressor model,
     consider whether to apply grid search with cross validation for hyper parameters tuning.
-    evaluate the model using F1 Score metric.
+    evaluate the model using MSE Score metric.
     :return:
     """
     n_estimators = [100, 200]
@@ -111,7 +111,7 @@ def run_random_forest(grid_search=False):
     # Minimum number of samples required at each leaf node
     min_samples_leaf = [1, 2]
 
-    class_model = ourRandomForest()
+    model = LGBMRegressor()
     total_data = iterate_files()
     scores = []
 
@@ -119,27 +119,27 @@ def run_random_forest(grid_search=False):
         if grid_search:
             params = {'n_estimators': n_estimators, 'max_depth': max_depth, 'max_features': max_features,
                       'min_samples_split': min_samples_split, 'min_samples_leaf': min_samples_leaf}
-            dtc_gs = GridSearchCV(class_model.model, params, cv=5).fit(prepared_data.x_train, np.ravel(prepared_data.y_train))
+            dtc_gs = GridSearchCV(model, params, cv=5).fit(prepared_data.x_train, np.ravel(prepared_data.y_train))
 
             best_params = dtc_gs.best_params_
             print_best_params(best_params, name)
-            class_model = ourRandomForest(n_estimators=best_params['n_estimators'],
+            model = LGBMRegressor(n_estimators=best_params['n_estimators'],
                                                 max_depth=best_params['max_depth'],
                                                 min_samples_split=best_params['min_samples_split'],
                                                 min_samples_leaf=best_params['min_samples_leaf'],
                                                 max_features=best_params['max_features'])
 
-        class_model.fit(prepared_data.x_train, np.ravel(prepared_data.y_train))
-        y_prediction = class_model.predict(prepared_data.x_test)
+        model.fit(prepared_data.x_train, np.ravel(prepared_data.y_train))
+        y_prediction = model.predict(prepared_data.x_test)
         scores.append([name.split('/')[1], evaluate(y_prediction, prepared_data.y_test)])
     return scores
 
 
-def run_rotation_forest(grid_search=False):
+def run_catboost(grid_search=False):
     """
-    run RotationTreeClassifier model,
+    run CatBoostRegressor model,
     consider whether to apply grid search with cross validation for hyper parameters tuning.
-    evaluate the model using F1 Score metric.
+    evaluate the model using MSE Score metric.
     :return:
     """
 
@@ -152,7 +152,7 @@ def run_rotation_forest(grid_search=False):
     min_samples_leaf = [1, 2]
     class_weight = [None, 'balanced']
 
-    class_model = ourRotationForest()
+    model = CatBoostRegressor()
     total_data = iterate_files()
     scores = []
 
@@ -160,17 +160,17 @@ def run_rotation_forest(grid_search=False):
         if grid_search:
             params = {'n_features_per_subset': n_features_per_subset, 'max_depth': max_depth,
                       'min_samples_split': min_samples_split, 'min_samples_leaf': min_samples_leaf}
-            dtc_gs = GridSearchCV(class_model.model, params, cv=5, scoring='f1_weighted').fit(prepared_data.x_train, prepared_data.y_train)
+            dtc_gs = GridSearchCV(model, params, cv=5, scoring='f1_weighted').fit(prepared_data.x_train, prepared_data.y_train)
 
             best_params = dtc_gs.best_params_
             print_best_params(best_params, name)
-            class_model = ourRotationForest(n_features_per_subset=best_params['n_features_per_subset'],
+            class_model = CatBoostRegressor(n_features_per_subset=best_params['n_features_per_subset'],
                                                  max_depth=best_params['max_depth'],
                                                  min_samples_split=best_params['min_samples_split'],
                                                  min_samples_leaf=best_params['min_samples_leaf'])
 
-        class_model.fit(prepared_data.x_train, prepared_data.y_train)
-        y_prediction = class_model.predict(prepared_data.x_test)
+        model.fit(prepared_data.x_train, prepared_data.y_train)
+        y_prediction = model.predict(prepared_data.x_test)
         scores.append([name.split('/')[1], evaluate(y_prediction, prepared_data.y_test)])
 
     return scores
@@ -178,30 +178,28 @@ def run_rotation_forest(grid_search=False):
 
 def evaluate(y_test, y_pred):
     """
-    apply F1 Score metric, calculating the weighted average of all classes classifications.
-    considers both Recall and Precision metrics.
+    apply MSE Score metric
     :param y_test:
     :param y_pred:
     :return:
     """
-    score = f1_score(y_test, y_pred, average='weighted')
+    score = mean_squared_error(y_test, y_pred, multioutput="uniform_average")
     return round(score, 3)
 
 
 if __name__ == '__main__':
 
     for i in tqdm(range(1)):
+        adaboost_scores = run_adaboost()
+        print(f'Adaboost MSE Without Hyper-Parameter Tuning: {adaboost_scores}')
+        lightgbm_score = run_lightgbm()
+        print(f'Lightgbm MSE Without Hyper-Parameter Tuning: {lightgbm_score}')
+        catboost_score = run_catboost()
+        print(f'Catboost MSE Without Hyper-Parameter Tuning: {catboost_score}\n')
 
-        # decision_tree_scores = run_decision_tree_model()
-        # print(f'\nDecision Tree F1 Score Without Hyper-Parameter Tuning: {decision_tree_scores}')
-        # random_forest_score = run_random_forest()
-        # print(f'Random Forest F1 Score Without Hyper-Parameter Tuning: {random_forest_score}')
-        # rotation_forest_score = run_rotation_forest()
-        # print(f'Rotation Forest F1 Score Without Hyper-Parameter Tuning: {rotation_forest_score}\n')
-
-        decision_tree_scores = run_decision_tree_model(grid_search=True)
-        print(f'Decision Tree F1 Score With Hyper-Parameter Tuning: {decision_tree_scores}')
-        random_forest_score = run_random_forest(grid_search=True)
-        print(f'Random Forest F1 Score With Hyper-Parameter Tuning: {random_forest_score}')
-        rotation_forest_score = run_rotation_forest(grid_search=True)
-        print(f'Rotation Forest F1 Score With Hyper-Parameter Tuning: {rotation_forest_score}')
+        adaboost_scores = run_adaboost(grid_search=True)
+        print(f'Adaboost MSE With Hyper-Parameter Tuning: {adaboost_scores}')
+        lightgbm_score = run_lightgbm(grid_search=True)
+        print(f'Lightgbm MSE With Hyper-Parameter Tuning: {lightgbm_score}')
+        catboost_score = run_catboost(grid_search=True)
+        print(f'Catboost MSE With Hyper-Parameter Tuning: {catboost_score}')

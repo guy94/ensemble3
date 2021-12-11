@@ -1,7 +1,4 @@
-import collections
-
 import pandas as pd
-import random
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
@@ -47,7 +44,7 @@ class DataPreparation:
 
         for col in df:
             if df[col].dtype != np.object:
-                df[col] = pd.cut(x=df[col], bins=3, include_lowest=True)
+                df[col] = pd.cut(x=df[col], bins=10, include_lowest=True)
             df[col] = self.label_encoder.fit_transform(df[col])
 
     def partition_data_sets(self):
