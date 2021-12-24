@@ -43,9 +43,12 @@ class DataPreparation:
         """
 
         for col in df:
-            if df[col].dtype != np.object:
-                df[col] = pd.cut(x=df[col], bins=10, include_lowest=True)
-            df[col] = self.label_encoder.fit_transform(df[col])
+            # if df[col].dtype != np.object:
+            #     df[col] = pd.cut(x=df[col], bins=10, include_lowest=True)
+            # df[col] = self.label_encoder.fit_transform(df[col])
+
+            if df[col].dtype == np.object:
+                df[col] = self.label_encoder.fit_transform(df[col])
 
     def partition_data_sets(self):
         """

@@ -1,5 +1,6 @@
-from sklearn.ensemble import AdaBoostClassifier
+from sklearn.ensemble import AdaBoostRegressor
 from sklearn.model_selection import GridSearchCV
+from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 from tqdm import tqdm
 import numpy as np
 import read_csv as reader
@@ -55,38 +56,44 @@ def correlation(dp, file_name):
     plt.show()
 
 
-def print_best_params(best_params, name):
+def print_best_params(best_params, file_name, model_name):
     """
     print the selected values of each hyper-param
     :param best_params:
     :return:
     """
 
-    print(f"\n\nDecision Tree Best Params For Data Set: {name.split('/')[1]}")
+    print(f"\n\n{model_name} Best Params For Data Set: {file_name.split('/')[1]}")
     for key, val in best_params.items():
         print(f'{key}: {val}')
 
 
 def run_adaboost(grid_search=False):
     """
-    run AdaBoostClassifier model,
+    run AdaBoostRegressor model,
+    use DecisionTreeRegressor as base estimator,
     consider whether to apply grid search with cross validation for hyper parameters tuning.
-    evaluate the model using MSE Score metric.
+    evaluate the model using RMSE Score metric.
     :return:
     """
 
+    n_estimators = [50, 100, 200]
+    learning_rate = [0.03, 0.1, 0.2, 0.5, 1, 1.5]
+
     total_data = iterate_files()
-    model = AdaBoostClassifier()
+    model = AdaBoostRegressor(base_estimator=DecisionTreeRegressor(max_depth=1))
     scores = []
 
     for name, prepared_data in total_data.items():
         if grid_search:
-            params = {'max_depth': [5, 10, 12, 15, 20, 30, 50], 'min_samples_split': [2, 3, 5, 7]}
+            params = {'n_estimators': n_estimators, 'learning_rate': learning_rate}
             dtc_gs = GridSearchCV(model, params, cv=5).fit(prepared_data.x_train, np.ravel(prepared_data.y_train))
 
             best_params = dtc_gs.best_params_
-            print_best_params(best_params, name)
-            model = AdaBoostClassifier()
+            print_best_params(best_params, name, 'AdaBoostRegressor')
+            model = AdaBoostRegressor(base_estimator=DecisionTreeRegressor(max_depth=1),
+                                      n_estimators=best_params['n_estimators'],
+                                      learning_rate=best_params['learning_rate'])
 
         model.fit(prepared_data.x_train, np.ravel(prepared_data.y_train))
         y_prediction = model.predict(prepared_data.x_test)
@@ -98,18 +105,13 @@ def run_lightgbm(grid_search=False):
     """
     run LGBMRegressor model,
     consider whether to apply grid search with cross validation for hyper parameters tuning.
-    evaluate the model using MSE Score metric.
+    evaluate the model using RMSE Score metric.
     :return:
     """
     n_estimators = [100, 200]
-    # Number of features to consider at every split
-    max_features = ['sqrt', None]
-    # Maximum number of levels in tree
-    max_depth = [10, 30, 50, None]
-    # Minimum number of samples required to split a node
-    min_samples_split = [2, 5]
-    # Minimum number of samples required at each leaf node
-    min_samples_leaf = [1, 2]
+    num_leaves = [5, 10, 20, 31]
+    max_depth = [-1, 10, 30, 50]
+    boosting_type = ['gbdt', 'dart']
 
     model = LGBMRegressor()
     total_data = iterate_files()
@@ -117,17 +119,16 @@ def run_lightgbm(grid_search=False):
 
     for name, prepared_data in total_data.items():
         if grid_search:
-            params = {'n_estimators': n_estimators, 'max_depth': max_depth, 'max_features': max_features,
-                      'min_samples_split': min_samples_split, 'min_samples_leaf': min_samples_leaf}
+            params = {'n_estimators': n_estimators, 'max_depth': max_depth, 'num_leaves': num_leaves,
+                      'boosting_type': boosting_type}
             dtc_gs = GridSearchCV(model, params, cv=5).fit(prepared_data.x_train, np.ravel(prepared_data.y_train))
 
             best_params = dtc_gs.best_params_
-            print_best_params(best_params, name)
+            print_best_params(best_params, name, 'LGBMRegressor')
             model = LGBMRegressor(n_estimators=best_params['n_estimators'],
-                                                max_depth=best_params['max_depth'],
-                                                min_samples_split=best_params['min_samples_split'],
-                                                min_samples_leaf=best_params['min_samples_leaf'],
-                                                max_features=best_params['max_features'])
+                                  max_depth=best_params['max_depth'],
+                                  num_leaves=best_params['num_leaves'],
+                                  boosting_type=best_params['boosting_type'])
 
         model.fit(prepared_data.x_train, np.ravel(prepared_data.y_train))
         y_prediction = model.predict(prepared_data.x_test)
@@ -139,35 +140,31 @@ def run_catboost(grid_search=False):
     """
     run CatBoostRegressor model,
     consider whether to apply grid search with cross validation for hyper parameters tuning.
-    evaluate the model using MSE Score metric.
+    evaluate the model using RMSE Score metric.
     :return:
     """
 
-    n_features_per_subset = [3, 5]
-    # Number of features to consider in each classifier
-    max_depth = [10, 30, 50, None]
-    # Minimum number of samples required to split a node
-    min_samples_split = [2, 5]
-    # Minimum number of samples required at each leaf node
-    min_samples_leaf = [1, 2]
-    class_weight = [None, 'balanced']
+    depth = [6, 8, 10]
+    learning_rate = [0.01, 0.05, 0.1]
+    iterations = [30, 50, 100]
 
-    model = CatBoostRegressor()
+    model = CatBoostRegressor(logging_level='Silent')
     total_data = iterate_files()
     scores = []
 
     for name, prepared_data in total_data.items():
         if grid_search:
-            params = {'n_features_per_subset': n_features_per_subset, 'max_depth': max_depth,
-                      'min_samples_split': min_samples_split, 'min_samples_leaf': min_samples_leaf}
-            dtc_gs = GridSearchCV(model, params, cv=5, scoring='f1_weighted').fit(prepared_data.x_train, prepared_data.y_train)
+            params = {'depth': depth,
+                      'iterations': iterations,
+                      'learning_rate': learning_rate}
+            dtc_gs = GridSearchCV(model, params, cv=5, scoring='f1_weighted').fit(prepared_data.x_train,
+                                                                                  prepared_data.y_train)
 
             best_params = dtc_gs.best_params_
-            print_best_params(best_params, name)
-            class_model = CatBoostRegressor(n_features_per_subset=best_params['n_features_per_subset'],
-                                                 max_depth=best_params['max_depth'],
-                                                 min_samples_split=best_params['min_samples_split'],
-                                                 min_samples_leaf=best_params['min_samples_leaf'])
+            print_best_params(best_params, name, 'CatBoostRegressor')
+            model = CatBoostRegressor(logging_level='Silent', depth=best_params['depth'],
+                                      learning_rate=best_params['learning_rate'],
+                                      iterations=best_params['iterations'])
 
         model.fit(prepared_data.x_train, prepared_data.y_train)
         y_prediction = model.predict(prepared_data.x_test)
@@ -183,23 +180,23 @@ def evaluate(y_test, y_pred):
     :param y_pred:
     :return:
     """
-    score = mean_squared_error(y_test, y_pred, multioutput="uniform_average")
+    score = mean_squared_error(y_test, y_pred, squared=False)
     return round(score, 3)
 
 
 if __name__ == '__main__':
 
     for i in tqdm(range(1)):
-        adaboost_scores = run_adaboost()
-        print(f'Adaboost MSE Without Hyper-Parameter Tuning: {adaboost_scores}')
-        lightgbm_score = run_lightgbm()
-        print(f'Lightgbm MSE Without Hyper-Parameter Tuning: {lightgbm_score}')
-        catboost_score = run_catboost()
-        print(f'Catboost MSE Without Hyper-Parameter Tuning: {catboost_score}\n')
+        # catboost_score = run_catboost()
+        # print(f'Catboost MSE Without Hyper-Parameter Tuning: {catboost_score}\n')
+        # adaboost_scores = run_adaboost()
+        # print(f'Adaboost MSE Without Hyper-Parameter Tuning: {adaboost_scores}')
+        # lightgbm_score = run_lightgbm()
+        # print(f'Lightgbm MSE Without Hyper-Parameter Tuning: {lightgbm_score}')
 
+        catboost_score = run_catboost(grid_search=True)
+        print(f'\n\nCatboost MSE With Hyper-Parameter Tuning: {catboost_score}')
         adaboost_scores = run_adaboost(grid_search=True)
         print(f'Adaboost MSE With Hyper-Parameter Tuning: {adaboost_scores}')
         lightgbm_score = run_lightgbm(grid_search=True)
         print(f'Lightgbm MSE With Hyper-Parameter Tuning: {lightgbm_score}')
-        catboost_score = run_catboost(grid_search=True)
-        print(f'Catboost MSE With Hyper-Parameter Tuning: {catboost_score}')
