@@ -175,7 +175,7 @@ def run_catboost(grid_search=False):
 
 def evaluate(y_test, y_pred):
     """
-    apply MSE Score metric
+    apply RMSE Score metric
     :param y_test:
     :param y_pred:
     :return:
@@ -188,15 +188,15 @@ if __name__ == '__main__':
 
     for i in tqdm(range(1)):
         # catboost_score = run_catboost()
-        # print(f'Catboost MSE Without Hyper-Parameter Tuning: {catboost_score}\n')
+        # print(f'Catboost RMSE Without Hyper-Parameter Tuning: {catboost_score}\n')
         # adaboost_scores = run_adaboost()
-        # print(f'Adaboost MSE Without Hyper-Parameter Tuning: {adaboost_scores}')
+        # print(f'Adaboost RMSE Without Hyper-Parameter Tuning: {adaboost_scores}')
         # lightgbm_score = run_lightgbm()
-        # print(f'Lightgbm MSE Without Hyper-Parameter Tuning: {lightgbm_score}')
+        # print(f'Lightgbm RMSE Without Hyper-Parameter Tuning: {lightgbm_score}')
 
         catboost_score = run_catboost(grid_search=True)
-        print(f'\n\nCatboost MSE With Hyper-Parameter Tuning: {catboost_score}')
-        adaboost_scores = run_adaboost(grid_search=True)
-        print(f'Adaboost MSE With Hyper-Parameter Tuning: {adaboost_scores}')
+        print(f'\n\nCatboost RMSE With Hyper-Parameter Tuning: {catboost_score}')
+        adaboost_score = run_adaboost(grid_search=True)
+        print(f'Adaboost RMSE With Hyper-Parameter Tuning: {adaboost_score}')
         lightgbm_score = run_lightgbm(grid_search=True)
-        print(f'Lightgbm MSE With Hyper-Parameter Tuning: {lightgbm_score}')
+        print(f'Lightgbm RMSE With Hyper-Parameter Tuning: {lightgbm_score}')
