@@ -38,7 +38,7 @@ def prepare_data(dp, file_name):
 
     dp.partition_data_sets()
     dp.fill_na()
-    # correlation(dp, file_name)
+    #correlation(dp, file_name)
     dp.discretization(dp.x_train)
     dp.discretization(dp.x_test)
 
@@ -157,7 +157,7 @@ def run_catboost(grid_search=False):
             params = {'depth': depth,
                       'iterations': iterations,
                       'learning_rate': learning_rate}
-            dtc_gs = GridSearchCV(model, params, cv=5, scoring='f1_weighted').fit(prepared_data.x_train,
+            dtc_gs = GridSearchCV(model, params, cv=5).fit(prepared_data.x_train,
                                                                                   prepared_data.y_train)
 
             best_params = dtc_gs.best_params_
@@ -180,23 +180,24 @@ def evaluate(y_test, y_pred):
     :param y_pred:
     :return:
     """
-    score = mean_squared_error(y_test, y_pred, squared=False)
+    score = mean_squared_error(y_test, y_pred, squared=True)
     return round(score, 3)
 
 
 if __name__ == '__main__':
 
     for i in tqdm(range(1)):
-        # catboost_score = run_catboost()
-        # print(f'Catboost RMSE Without Hyper-Parameter Tuning: {catboost_score}\n')
-        # adaboost_scores = run_adaboost()
-        # print(f'Adaboost RMSE Without Hyper-Parameter Tuning: {adaboost_scores}')
-        # lightgbm_score = run_lightgbm()
-        # print(f'Lightgbm RMSE Without Hyper-Parameter Tuning: {lightgbm_score}')
+
+        #catboost_score = run_catboost()
+        #print(f'\nCatboost RMSE Without Hyper-Parameter Tuning:\n{catboost_score}\n')
+        #adaboost_scores = run_adaboost()
+        #print(f'\nAdaboost RMSE Without Hyper-Parameter Tuning:\n{adaboost_scores}')
+        #lightgbm_score = run_lightgbm()
+        #print(f'\nLightgbm RMSE Without Hyper-Parameter Tuning:\n{lightgbm_score}')
 
         catboost_score = run_catboost(grid_search=True)
-        print(f'\n\nCatboost RMSE With Hyper-Parameter Tuning: {catboost_score}')
+        print(f'\n\nCatboost RMSE With Hyper-Parameter Tuning:\n{catboost_score}')
         adaboost_score = run_adaboost(grid_search=True)
-        print(f'Adaboost RMSE With Hyper-Parameter Tuning: {adaboost_score}')
+        print(f'Adaboost RMSE With Hyper-Parameter Tuning:\n{adaboost_score}')
         lightgbm_score = run_lightgbm(grid_search=True)
-        print(f'Lightgbm RMSE With Hyper-Parameter Tuning: {lightgbm_score}')
+        print(f'Lightgbm RMSE With Hyper-Parameter Tuning:\n{lightgbm_score}')
